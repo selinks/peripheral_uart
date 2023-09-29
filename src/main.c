@@ -33,8 +33,13 @@
 
 #include <zephyr/logging/log.h>
 
+#include <SEGGER_RTT.h>
+
 #define LOG_MODULE_NAME rtt
 LOG_MODULE_REGISTER(app, CONFIG_LOG_MAX_LEVEL);
+
+#define RTT_IN_BUFSIZE 10 // number of characters to receive at a time in RTT console
+char rtt_in_buf[RTT_IN_BUFSIZE]; //console input
 
 #define STACKSIZE CONFIG_BT_NUS_THREAD_STACK_SIZE
 #define PRIORITY 7
@@ -471,6 +476,8 @@ static void bt_receive_cb(struct bt_conn *conn, const uint8_t *const data,
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, ARRAY_SIZE(addr));
 
 	LOG_INF("Received data from: %s", addr);
+    LOG_DBG("Received data from BLE NUS.");
+    LOG_HEXDUMP_DBG(data, len, "test_string");
 
 	for (uint16_t pos = 0; pos != len;) {
 		struct uart_data_t *tx = k_malloc(sizeof(*tx));
@@ -575,6 +582,8 @@ int main(void)
 	int blink_status = 0;
 	int err = 0;
 
+    SEGGER_RTT_ConfigDownBuffer(0, "console", rtt_in_buf, sizeof(rtt_in_buf), SEGGER_RTT_MODE_NO_BLOCK_TRIM);
+    
 	configure_gpio();
 
 	err = uart_init();
@@ -630,19 +639,29 @@ int main(void)
 
 void ble_write_thread(void)
 {
+	char c;
+    unsigned int n;
+
 	/* Don't go any further until BLE is initialized */
 	k_sem_take(&ble_init_ok, K_FOREVER);
 
 	for (;;) {
 		/* Wait indefinitely for data to be sent over bluetooth */
-		struct uart_data_t *buf = k_fifo_get(&fifo_uart_rx_data,
+		/*struct uart_data_t *buf = k_fifo_get(&fifo_uart_rx_data,
 						     K_FOREVER);
 
 		if (bt_nus_send(NULL, buf->data, buf->len)) {
 			LOG_WRN("Failed to send data over BLE connection");
 		}
 
-		k_free(buf);
+		k_free(buf);*/
+
+		n = SEGGER_RTT_Read(0, &c, 1); // read one character from RTT
+		if (bt_nus_send(NULL, &c, 1)) {
+			LOG_WRN("Failed to send data over BLE connection");
+		}
+		k_sleep(K_MSEC(1000));
+
 	}
 }
 
