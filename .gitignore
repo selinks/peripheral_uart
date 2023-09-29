@@ -4,3 +4,6 @@
 
 # build
 /build*/
+
+# VS Code settings
+.vscode
