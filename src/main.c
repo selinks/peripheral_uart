@@ -33,8 +33,8 @@
 
 #include <zephyr/logging/log.h>
 
-#define LOG_MODULE_NAME peripheral_uart
-LOG_MODULE_REGISTER(LOG_MODULE_NAME);
+#define LOG_MODULE_NAME rtt
+LOG_MODULE_REGISTER(app, CONFIG_LOG_MAX_LEVEL);
 
 #define STACKSIZE CONFIG_BT_NUS_THREAD_STACK_SIZE
 #define PRIORITY 7
