@@ -35,8 +35,8 @@
 
 #include <SEGGER_RTT.h>
 
-#define LOG_MODULE_NAME rtt
-LOG_MODULE_REGISTER(app, CONFIG_LOG_MAX_LEVEL);
+#define LOG_MODULE_NAME app
+LOG_MODULE_REGISTER(LOG_MODULE_NAME, CONFIG_LOG_MAX_LEVEL);
 
 #define RTT_IN_BUFSIZE 10 // number of characters to receive at a time in RTT console
 char rtt_in_buf[RTT_IN_BUFSIZE]; //console input
@@ -247,7 +247,7 @@ static int uart_init(void)
 	}
 
 	if (IS_ENABLED(CONFIG_USB_DEVICE_STACK)) {
-		err = usb_enable(NULL);
+		//err = usb_enable(NULL);
 		if (err && (err != -EALREADY)) {
 			LOG_ERR("Failed to enable USB");
 			return err;
@@ -476,8 +476,7 @@ static void bt_receive_cb(struct bt_conn *conn, const uint8_t *const data,
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, ARRAY_SIZE(addr));
 
 	LOG_INF("Received data from: %s", addr);
-    LOG_DBG("Received data from BLE NUS.");
-    LOG_HEXDUMP_DBG(data, len, "test_string");
+    LOG_HEXDUMP_DBG(data, len, "from bt_receive_cb()");
 
 	for (uint16_t pos = 0; pos != len;) {
 		struct uart_data_t *tx = k_malloc(sizeof(*tx));
