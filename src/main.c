@@ -59,8 +59,6 @@ char rtt_in_buf[RTT_IN_BUFSIZE]; //console input
 #define UART_WAIT_FOR_BUF_DELAY K_MSEC(50)
 #define UART_WAIT_FOR_RX CONFIG_BT_NUS_UART_RX_WAIT_TIME
 
-static K_SEM_DEFINE(ble_init_ok, 0, 1);
-
 static struct bt_conn *current_conn;
 static struct bt_conn *auth_conn;
 
@@ -580,6 +578,8 @@ int main(void)
 {
 	int blink_status = 0;
 	int err = 0;
+    char c;
+    unsigned int n;
 
     SEGGER_RTT_ConfigDownBuffer(0, "console", rtt_in_buf, sizeof(rtt_in_buf), SEGGER_RTT_MODE_NO_BLOCK_TRIM);
     
@@ -611,8 +611,6 @@ int main(void)
 
 	LOG_INF("Bluetooth initialized");
 
-	k_sem_give(&ble_init_ok);
-
 	if (IS_ENABLED(CONFIG_SETTINGS)) {
 		settings_load();
 	}
@@ -631,38 +629,13 @@ int main(void)
 	}
 
 	for (;;) {
+    
+		n = SEGGER_RTT_Read(0, &c, 1); // read one character from RTT
+		if (bt_nus_send(NULL, &c, 1)) {
+			LOG_WRN("Failed to send data over BLE connection");
+		}    
+
 		dk_set_led(RUN_STATUS_LED, (++blink_status) % 2);
 		k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
 	}
 }
-
-void ble_write_thread(void)
-{
-	char c;
-    unsigned int n;
-
-	/* Don't go any further until BLE is initialized */
-	k_sem_take(&ble_init_ok, K_FOREVER);
-
-	for (;;) {
-		/* Wait indefinitely for data to be sent over bluetooth */
-		/*struct uart_data_t *buf = k_fifo_get(&fifo_uart_rx_data,
-						     K_FOREVER);
-
-		if (bt_nus_send(NULL, buf->data, buf->len)) {
-			LOG_WRN("Failed to send data over BLE connection");
-		}
-
-		k_free(buf);*/
-
-		n = SEGGER_RTT_Read(0, &c, 1); // read one character from RTT
-		if (bt_nus_send(NULL, &c, 1)) {
-			LOG_WRN("Failed to send data over BLE connection");
-		}
-		k_sleep(K_MSEC(1000));
-
-	}
-}
-
-K_THREAD_DEFINE(ble_write_thread_id, STACKSIZE, ble_write_thread, NULL, NULL,
-		NULL, PRIORITY, 0, 0);
