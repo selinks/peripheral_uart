@@ -21,8 +21,6 @@
 
 #include <bluetooth/services/nus.h>
 
-#include <zephyr/settings/settings.h>
-
 #include <stdio.h>
 
 #include <zephyr/logging/log.h>
@@ -158,10 +156,6 @@ int main(void)
 	}
 
 	LOG_INF("Bluetooth initialized");
-
-	if (IS_ENABLED(CONFIG_SETTINGS)) {
-		settings_load();
-	}
 
 	err = bt_nus_init(&nus_cb);
 	if (err) {
