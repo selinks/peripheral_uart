@@ -21,6 +21,8 @@
 
 #include <bluetooth/services/nus.h>
 
+#include <zephyr/settings/settings.h>
+
 #include <stdio.h>
 
 #include <zephyr/logging/log.h>
@@ -36,6 +38,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME, CONFIG_LOG_MAX_LEVEL);
 #define RTT_IN_BUFSIZE 10 // number of characters to receive at a time in RTT console
 char rtt_in_buf[RTT_IN_BUFSIZE]; //console input
 
+// TODO: Create NUS write thread as was earlier
 #define STACKSIZE CONFIG_BT_NUS_THREAD_STACK_SIZE
 #define PRIORITY 7
 
@@ -139,7 +142,6 @@ void error(void)
 
 int main(void)
 {
-	int blink_status = 0;
 	int err = 0;
     char c;
     unsigned int n = 0;
@@ -156,6 +158,10 @@ int main(void)
 	}
 
 	LOG_INF("Bluetooth initialized");
+
+	if (IS_ENABLED(CONFIG_SETTINGS)) {
+		settings_load();
+	}
 
 	err = bt_nus_init(&nus_cb);
 	if (err) {
