@@ -25,14 +25,12 @@
 
 #include <stdio.h>
 
-#include <zephyr/logging/log.h>
+//#include <zephyr/logging/log.h> - in "simplest_interpreter.h"
 
 #include <SEGGER_RTT.h>
 
 #include "simplest_interpreter.h"
 
-
-#define LOG_MODULE_NAME app
 LOG_MODULE_REGISTER(LOG_MODULE_NAME, CONFIG_LOG_MAX_LEVEL);
 
 #define RTT_IN_BUFSIZE 10 // number of characters to receive at a time in RTT console
@@ -56,12 +54,11 @@ static const struct bt_data sd[] = {
 	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_NUS_VAL),
 };
 
-struct fifo_program_data_t {
-	void *fifo_reserved;
-	uint8_t data_byte;
-};
+K_FIFO_DEFINE(fifo_program);
 
-static K_FIFO_DEFINE(fifo_program);
+char buf_program_output[21];
+
+bool fifo_has_enter = false;
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
@@ -103,13 +100,12 @@ static void bt_receive_cb(struct bt_conn *conn, const uint8_t *const data,
 	//int err;
 	char addr[BT_ADDR_LE_STR_LEN] = {0};
     uint8_t count = 0;
-	struct fifo_program_data_t *buf;
-	static char prompt[2];
-	prompt[0] = 10; prompt[1] = '>'; prompt[2] = ' ';
-	
+	fifo_program_data_t *buf;
+
+
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, ARRAY_SIZE(addr));
 	LOG_INF("Received data from: %s, now will be put in FIFO buffer", addr);
-    LOG_HEXDUMP_DBG(data, len, "hexdump of data:");
+    LOG_HEXDUMP_DBG(data, len, "hexdump of received data:");
 	
     while (count < len) {
         buf = k_malloc(sizeof(*buf));
@@ -117,13 +113,9 @@ static void bt_receive_cb(struct bt_conn *conn, const uint8_t *const data,
         k_fifo_put(&fifo_program, buf);
         count++;
 
-        LOG_DBG("data[count-1] = %u", data[count-1]);
-		if (data[count-1] == 10) {
-			LOG_DBG("Sending prompt in bt_nus_send()");
-			LOG_HEXDUMP_DBG(prompt, 3, "promt static variable:");
-			if (bt_nus_send(NULL, prompt, 3)) {
-				LOG_WRN("Failed to send data over BLE connection");
-		    }
+        if (data[count-1] == 13) {
+			LOG_DBG("fifo_has_enter is set");
+			fifo_has_enter = true;
 		}
     }
 }
@@ -143,9 +135,10 @@ void error(void)
 int main(void)
 {
 	int err = 0;
-    char c;
-    unsigned int n = 0;
+    //char c;
+    //unsigned int n = 0;
 	struct fifo_program_data_t *buf;
+    static uint8_t prompt[4]; prompt[0] = 13; prompt[1] = 10; prompt[2] = '>'; prompt[3] = ' ';
 
 
 	printk("Entering main().\n");
@@ -178,18 +171,26 @@ int main(void)
 
 	for (;;) {
     
-		n = SEGGER_RTT_Read(0, &c, 1); // read one character from RTT
+		/*n = SEGGER_RTT_Read(0, &c, 1); // read one character from RTT
 		if (n) {
 			n = 0;
 			if (bt_nus_send(NULL, &c, 1)) {
 				LOG_WRN("Failed to send data over BLE connection");
 		    }
+		}*/
+
+		if (fifo_has_enter) {
+            evaluate_fifo_buffer();
+            fifo_has_enter = false;
+            LOG_DBG("Evaluated buf_program_output result: %s", buf_program_output);
+            if (bt_nus_send(NULL, buf_program_output, strlen(buf_program_output))) {
+			    LOG_WRN("Failed to send data over BLE connection");
+			}
+            if (bt_nus_send(NULL, prompt, 4)) {
+				LOG_WRN("Failed to send prompt over BLE connection");
+			}
 		}
 
-		buf = k_fifo_get(&fifo_program, K_FOREVER);
-		if (buf) LOG_DBG("Received in FIFO buffer: %c\n", buf->data_byte);
-		if (buf) k_free(buf);
-		
-		k_sleep(K_MSEC(200));
+		k_sleep(K_MSEC(5000));
 	}
 }

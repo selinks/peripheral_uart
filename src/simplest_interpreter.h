@@ -1,8 +1,10 @@
-#ifndef _SIMPLEST_INTERPRETER_H_
-#define _SIMPLEST_INTERPRETER_H_
+#include <zephyr/logging/log.h>
 
-//extern static struct k_fifo fifo_program;
+#define LOG_MODULE_NAME app
 
-void evaluate_fifo_buffer();
+typedef struct tag_fifo_program_data_t {
+	void *fifo_reserved;
+	uint8_t data_byte;
+} fifo_program_data_t;
 
-#endif
+void evaluate_fifo_buffer(void);
